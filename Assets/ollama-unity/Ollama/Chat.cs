@@ -144,6 +144,7 @@ namespace ollama
         /// <param name="onTextReceived">The callback to handle the streaming chunks</param>
         /// <param name="model">Ollama Model Syntax (<b>eg.</b> gemma3:4b)</param>
         /// <param name="keep_alive">The duration <i>(in seconds)</i> to keep the model in memory</param>
+        /// <param name="image">Image to input with the text </param>
         public static async Task ChatStream(Action<string> onTextReceived, string model, string prompt, int keep_alive = 300, Texture2D image = null)
         {
             ChatHistory.Add(new Message("user", prompt, Texture2Base64(image)));

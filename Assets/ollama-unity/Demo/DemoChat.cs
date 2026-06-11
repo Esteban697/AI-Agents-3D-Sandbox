@@ -1,10 +1,16 @@
 using ollama;
 using System.Collections.Generic;
+using System;
+using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class DemoChat : MonoBehaviour
 {
+    [SerializeField] private Texture2D capturedTexture;
+    [SerializeField] private Image rotatingSquare;
+    
     [Header("Models")]
     [SerializeField]
     private string demoModel = "gemma3:4b";
@@ -24,6 +30,11 @@ public class DemoChat : MonoBehaviour
 
     private bool italic;
     private bool bold;
+    
+    // Camera setup
+    public Camera sourceCamera;
+    public int targetWidth = 480;
+    public int targetHeight = 480;
 
     void LateUpdate()
     {
@@ -77,11 +88,54 @@ public class DemoChat : MonoBehaviour
 
         bold = false;
         italic = false;
+        
+        // Capture frame
+        StartCoroutine(GetTextureFromCamera(sourceCamera, (txt2D) => SendTextAndImage(txt2D, input)));
+    }
 
-        await Ollama.ChatStream((string text) => buffer.Enqueue(text), demoModel, input);
+    private async void SendTextAndImage(Texture2D texture, string input)
+    {
+        // Show image
+        rotatingSquare.sprite = Sprite.Create(texture, new Rect(0, 0, targetWidth, targetHeight), Vector2.zero);
+        Debug.Log($"Handing over a texture of size w:{texture.width} h: {texture.height}. With format: {texture.format}");
+        // The call ChatStream
+        await Ollama.ChatStream((string text) => 
+            buffer.Enqueue(text), demoModel, input, 300, capturedTexture);
 
         llmOutput.text += "</line-height></align>\n";
         isStreaming = false;
         userInput.interactable = true;
+    }
+    
+    
+    private IEnumerator GetTextureFromCamera(Camera mCamera, Action<Texture2D> callback)
+    {
+        RenderTexture renderTexture = new RenderTexture(targetWidth, targetHeight, 24);
+        renderTexture.antiAliasing = 1;
+        Texture2D screenShot = new Texture2D(targetWidth, targetHeight, TextureFormat.RGB24, false);
+
+        mCamera.targetTexture = renderTexture;
+        mCamera.Render();
+        yield return new WaitForEndOfFrame();
+        
+        RenderTexture prev = RenderTexture.active;
+        RenderTexture.active = renderTexture;
+        
+        screenShot.ReadPixels(new Rect(0, 0, targetWidth, targetHeight), 0, 0);
+        screenShot.Apply();
+        
+        yield return new WaitForEndOfFrame();
+        // Copy this texture into memory before using it
+        capturedTexture = new Texture2D(screenShot.width, screenShot.height, screenShot.format, false);
+    
+        // Copy all pixels (main mip)
+        capturedTexture.SetPixels(screenShot.GetPixels());
+        capturedTexture.Apply();
+        
+        RenderTexture.active = prev;
+        mCamera.targetTexture = null;
+        renderTexture.Release();
+        
+        callback(screenShot);
     }
 }
