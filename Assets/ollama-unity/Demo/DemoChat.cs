@@ -77,7 +77,7 @@ public class DemoChat : MonoBehaviour
     }
 
     /// <summary>Called by <b>TMP_InputField</b></summary>
-    public async void OnSubmit(string input)
+    public void OnSubmit(string input)
     {
         if (isStreaming)
             return;
@@ -90,17 +90,22 @@ public class DemoChat : MonoBehaviour
         italic = false;
         
         // Capture frame
-        StartCoroutine(GetTextureFromCamera(sourceCamera, (txt2D) => SendTextAndImage(txt2D, input)));
+        StartCoroutine(GetTextureFromCamera(sourceCamera, (txt2D) =>
+        {
+            // Copy this texture into memory before using it
+            CopyCapturedTexture(txt2D, out capturedTexture, true);
+            SendTextAndImage(capturedTexture, input);
+        }));
     }
 
     private async void SendTextAndImage(Texture2D texture, string input)
     {
-        // Show image
+        // Show image for ease of use
         rotatingSquare.sprite = Sprite.Create(texture, new Rect(0, 0, targetWidth, targetHeight), Vector2.zero);
         Debug.Log($"Handing over a texture of size w:{texture.width} h: {texture.height}. With format: {texture.format}");
         // The call ChatStream
         await Ollama.ChatStream((string text) => 
-            buffer.Enqueue(text), demoModel, input, 300, capturedTexture);
+            buffer.Enqueue(text), demoModel, input, 300, texture);
 
         llmOutput.text += "</line-height></align>\n";
         isStreaming = false;
@@ -116,26 +121,89 @@ public class DemoChat : MonoBehaviour
 
         mCamera.targetTexture = renderTexture;
         mCamera.Render();
+        
         yield return new WaitForEndOfFrame();
         
         RenderTexture prev = RenderTexture.active;
         RenderTexture.active = renderTexture;
         
         screenShot.ReadPixels(new Rect(0, 0, targetWidth, targetHeight), 0, 0);
-        screenShot.Apply();
-        
-        yield return new WaitForEndOfFrame();
-        // Copy this texture into memory before using it
-        capturedTexture = new Texture2D(screenShot.width, screenShot.height, screenShot.format, false);
-    
-        // Copy all pixels (main mip)
-        capturedTexture.SetPixels(screenShot.GetPixels());
-        capturedTexture.Apply();
+        screenShot.Apply(false, false);
         
         RenderTexture.active = prev;
         mCamera.targetTexture = null;
         renderTexture.Release();
-        
         callback(screenShot);
+    }
+
+    private void CopyCapturedTexture(Texture2D inTex, out Texture2D outTex, bool considerMipmapLimits)
+    {
+        int width = inTex.width;
+        int height = inTex.width;
+
+        Texture2DArray outArray = new Texture2DArray(width, height, 24, inTex.format, false);
+        outTex = new Texture2D(width, height, inTex.format, false);
+
+        if (!considerMipmapLimits)
+        {
+            // Texture2D -> Texture2DArray
+            // Global Mipmap Limit: "1: Half Resolution" => copies into mips that are now too large; will copy each mip of inTex into a quarter of outArray
+            for (int mip = 0; mip < inTex.mipmapCount; ++mip)
+            {
+                int copyWidth = width >> mip;
+                int copyHeight = height >> mip;
+                Graphics.CopyTexture(inTex, 0, mip, 0, 0, copyWidth, copyHeight, outArray, 0, mip, 0, 0);
+            }
+
+            // Texture2DArray -> Texture2D
+            // Global Mipmap Limit: "1: Half Resolution" => errors, since we try to copy into mips that are now too small
+            for (int mip = 0; mip < outArray.mipmapCount; ++mip)
+            {
+                int copyWidth = width >> mip;
+                int copyHeight = height >> mip;
+                Graphics.CopyTexture(outArray, 0, mip, 0, 0, copyWidth, copyHeight, outTex, 0, mip, 0, 0);
+            }
+        }
+        else // considering mipmap limits
+        {
+            int globalMipmapLimit = QualitySettings.globalTextureMipmapLimit;
+
+            // Texture2D -> Texture2DArray
+            // Global Mipmap Limit: "1: Half Resolution" => mip0 of outArray is not written to, other mips copy as expected
+            //  (ALTERNATIVE: if outArray creation already considered globalMipmapLimit for its dimensions,
+            //   the CopyTexture call can ignore globalMipmapLimit since the mips will line up again)
+            for (int mip = 0; mip < inTex.mipmapCount - globalMipmapLimit; ++mip)
+            {
+                int copyWidth = width >> mip;
+                int copyHeight = height >> mip;
+                int srcMip = mip;
+                int dstMip = mip + globalMipmapLimit;
+                Graphics.CopyTexture(inTex, 0, srcMip, 0, 0, copyWidth, copyHeight, outArray, 0, dstMip, 0, 0);
+            }
+
+            // Texture2DArray -> Texture2D
+            // Global Mipmap Limit: "1: Half Resolution" => mip0 of outArray is not copied (but outTex does not upload it to GPU anyway)
+            for (int mip = globalMipmapLimit; mip < outArray.mipmapCount; ++mip)
+            {
+                int copyWidth = width >> mip;
+                int copyHeight = height >> mip;
+                int srcMip = mip;
+                int dstMip = mip - globalMipmapLimit;
+                Graphics.CopyTexture(outArray, 0, srcMip, 0, 0, copyWidth, copyHeight, outTex, 0, dstMip, 0, 0);
+            }
+        }
+    }
+    
+    private Texture2D GetTestTexture()
+    {
+        Texture2D tex = new Texture2D(480, 480, TextureFormat.RGB24, false);
+        for (int y = 0; y < 480; y++)
+        for (int x = 0; x < 480; x++)
+        {
+            bool inSquare = x > 25 && x < 75 && y > 25 && y < 75;
+            tex.SetPixel(x, y, inSquare ? Color.red : Color.white);
+        }
+        tex.Apply(false, false);
+        return tex;
     }
 }

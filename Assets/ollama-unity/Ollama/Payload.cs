@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 using UnityEngine;
 
 namespace ollama
@@ -35,7 +36,10 @@ namespace ollama
             public class Chat : Base
             {
                 public List<Message> messages;
+                
+                [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
                 public List<Tool> tools;
+                
                 public bool stream;
 
                 public Chat(string model, List<Message> messages, bool stream, int keep_alive, List<Tool> tools)
@@ -137,14 +141,18 @@ namespace ollama
         {
             public string role;
             public string content;
+            
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
             public string[] images;
+            
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
             public ToolCall[] tool_calls;
 
             public Message(string role, string content, string image = null)
             {
                 this.role = role;
                 this.content = content;
-                this.images = (image == null) ? null : new string[] { image };
+                this.images = (image == null) ? null : new[] { image };
             }
         }
 

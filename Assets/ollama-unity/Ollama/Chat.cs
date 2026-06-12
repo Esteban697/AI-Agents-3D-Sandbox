@@ -147,11 +147,15 @@ namespace ollama
         /// <param name="image">Image to input with the text </param>
         public static async Task ChatStream(Action<string> onTextReceived, string model, string prompt, int keep_alive = 300, Texture2D image = null)
         {
-            ChatHistory.Add(new Message("user", prompt, Texture2Base64(image)));
+            var imgBase64 = Convert.ToBase64String(image.EncodeToJPG(75));
+            Debug.Log($"The encoded bytes length is {image.EncodeToJPG(75).Length} while the resulting length is {imgBase64.Length}.");
+            ChatHistory.Add(new Message("user", prompt, imgBase64));
 
             var request = new Request.Chat(model, ChatHistory, true, keep_alive, null);
             string payload = JsonConvert.SerializeObject(request);
             StringBuilder reply = new StringBuilder();
+            
+            Debug.Log(payload);
 
             await PostRequestStream(payload, Endpoints.CHAT, (Response.Chat response) =>
             {
