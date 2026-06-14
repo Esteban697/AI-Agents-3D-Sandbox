@@ -5,6 +5,9 @@ using Newtonsoft.Json;
 
 namespace Agent_Abstractions.Memory
 {
+    /// <summary>
+    /// State Handler is the class that handles the persistent memory for AI Agents in a sequential and simple way
+    /// </summary>
     public class StateHandler
     {
         private readonly string _filePath;
