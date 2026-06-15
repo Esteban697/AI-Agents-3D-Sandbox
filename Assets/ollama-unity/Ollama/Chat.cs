@@ -2,6 +2,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -157,6 +158,46 @@ namespace ollama
             string payload = JsonConvert.SerializeObject(request);
             StringBuilder reply = new StringBuilder();
             
+            Debug.Log(payload);
+
+            await PostRequestStream(payload, Endpoints.CHAT, (Response.Chat response) =>
+            {
+                if (!response.done)
+                {
+                    onTextReceived?.Invoke(response.message.content);
+                    reply.Append(response.message.content);
+                }
+            });
+
+            ChatHistory.Add(new Message("assistant", reply.ToString()));
+
+            bool system = HasSystemPrompt();
+
+            int _limit = HistoryLimit + (system ? 1 : 0);
+            while (ChatHistory.Count > _limit)
+            {
+                if (system)
+                    ChatHistory.RemoveAt(1);
+                else
+                    ChatHistory.RemoveAt(0);
+            }
+
+            OnStreamFinished?.Invoke();
+        }
+        
+        public static async Task ChatStreamNew(Action<string> onTextReceived, string model, string prompt, string format, int keep_alive = 300, Texture2D image = null)
+        {
+            // 1. Encode only ONCE to save memory and prevent buffer issues
+            byte[] pngBytes = image.EncodeToPNG(); 
+            // 2. Convert to raw base64 text string
+            string imgBase64 = Convert.ToBase64String(pngBytes, Base64FormattingOptions.None);
+            // Add message
+            ChatHistory.Add(new Message("user", prompt, imgBase64));
+            // Serialize request
+            var request = new Request.ChatWithFormat(model, ChatHistory, true, keep_alive, format, null);
+            string payload = JsonConvert.SerializeObject(request);
+            StringBuilder reply = new StringBuilder();
+            // Show prompt to send
             Debug.Log(payload);
 
             await PostRequestStream(payload, Endpoints.CHAT, (Response.Chat response) =>

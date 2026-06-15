@@ -42,7 +42,26 @@ namespace Agent_Mechanics
         // Take the action sequence form the JSON Example and running the sequentially
         void Start()
         {
-            RunJson(jsonExample);
+            // TO TEST: This runs the example sequence but the whole logic is meant to listen to model responses
+            // RunJson(jsonExample);
+        }
+
+        public void RunStringArray(string[] array)
+        {
+            foreach (var actionName in array)
+            {
+                if (string.IsNullOrWhiteSpace(actionName))
+                    continue;
+
+                if (actionMap.TryGetValue(actionName, out var coroutineFactory))
+                {
+                    coroutineQueue.Enqueue(coroutineFactory());
+                }
+                else
+                {
+                    Debug.LogWarning($"Unknown action: {actionName}");
+                }
+            }
         }
         
         public void RunJson(string json)

@@ -32,6 +32,25 @@ namespace ollama
                     this.keep_alive = keep_alive;
                 }
             }
+            
+            public class ChatWithFormat : Base
+            {
+                public List<Message> messages;
+                
+                [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+                public List<Tool> tools;
+                
+                public bool stream;
+
+                public ChatWithFormat(string model, List<Message> messages, bool stream, int keep_alive, string format, List<Tool> tools)
+                {
+                    this.model = model;
+                    this.messages = messages;
+                    this.tools = tools;
+                    this.stream = stream;
+                    this.keep_alive = keep_alive;
+                }
+            }
 
             public class Chat : Base
             {
