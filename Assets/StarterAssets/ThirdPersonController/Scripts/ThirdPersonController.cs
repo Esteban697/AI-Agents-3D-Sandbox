@@ -258,16 +258,20 @@ namespace StarterAssets
             // if there is a move input rotate player when the player is moving
             if (_input.move != Vector2.zero)
             {
-                _targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg +
-                                  _mainCamera.transform.eulerAngles.y;
+                // _targetRotation = Mathf.Atan2(_input.look.y, _input.look.x) * Mathf.Rad2Deg +
+                //                    _mainCamera.transform.eulerAngles.y;
+                // _targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg +
+                //                   _mainCamera.transform.eulerAngles.y;
+                
+                // Overwriting the rotation with respect to the floor connected to "look" that runs from new Mover script
+                _targetRotation = _cinemachineTargetYaw;
                 float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, _targetRotation, ref _rotationVelocity,
                     RotationSmoothTime);
-
+                
                 // rotate to face input direction relative to camera position
                 transform.rotation = Quaternion.Euler(0.0f, rotation, 0.0f);
             }
-
-
+            
             Vector3 targetDirection = Quaternion.Euler(0.0f, _targetRotation, 0.0f) * Vector3.forward;
 
             // move the player
