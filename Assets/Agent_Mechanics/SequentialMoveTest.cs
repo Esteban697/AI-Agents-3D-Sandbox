@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Newtonsoft.Json;
 
 namespace Agent_Mechanics
 {
@@ -46,7 +45,7 @@ namespace Agent_Mechanics
             // RunJson(jsonExample);
         }
 
-        public void RunStringArray(string[] array)
+        public void RunStringArray(string[] array, Action callWhenFinished)
         {
             foreach (var actionName in array)
             {
@@ -62,6 +61,8 @@ namespace Agent_Mechanics
                     Debug.LogWarning($"Unknown action: {actionName}");
                 }
             }
+
+            coroutineQueue.DefineActionWhenQueueIsEmpty(callWhenFinished);
         }
         
         public void RunJson(string json)

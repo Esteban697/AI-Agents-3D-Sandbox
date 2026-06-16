@@ -291,10 +291,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eb68c04f527b6194f8440f8b4a173d42, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DemoSendImageAndGetJson
+  cameraFrameGetter: {fileID: 1221041505}
   sequentialMoveTest: {fileID: 1762682262}
   imageToShow: {fileID: 60538176}
   demoModel: llava
-  sourceCamera: {fileID: 1221041500}
+  targetWidth: 480
+  targetHeight: 480
+  isStreaming: 0
 --- !u!4 &361599295
 Transform:
   m_ObjectHideFlags: 0
@@ -1265,6 +1268,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8944336655422409498, guid: f6d148d888ffbf54b9afe9936dfaec1f, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1221041504}
+    - targetCorrespondingSourceObject: {fileID: 8944336655422409498, guid: f6d148d888ffbf54b9afe9936dfaec1f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1221041505}
   m_SourcePrefab: {fileID: 100100000, guid: f6d148d888ffbf54b9afe9936dfaec1f, type: 3}
 --- !u!20 &1221041500 stripped
 Camera:
@@ -1315,6 +1321,19 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!114 &1221041505
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 841060025}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3fa7ec55917cdef4ba615a6392a4bc96, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Agent_Mechanics.CameraFrameGetter
+  sourceCamera: {fileID: 1221041500}
 --- !u!1001 &1402827283
 PrefabInstance:
   m_ObjectHideFlags: 0

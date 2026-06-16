@@ -1,5 +1,4 @@
 using UnityEngine;
-using System.Collections;
 using System.Collections.Generic;
 using ollama;
 using System;
@@ -15,6 +14,9 @@ namespace Agent_Mechanics
     /// </summary>
     public class DemoSendImageAndGetJson : MonoBehaviour
     {
+        [Header("Camera Frame Getter")]
+        [SerializeField] CameraFrameGetter cameraFrameGetter;
+        
         [Header("Move Sequencer")]
         [SerializeField] SequentialMoveTest sequentialMoveTest;
         
@@ -25,30 +27,23 @@ namespace Agent_Mechanics
         [SerializeField]
         private string demoModel = "llava";
         
-        [Header("Camera to capture image")]
-        [SerializeField]
-        private Camera sourceCamera;
+        public int targetWidth = 480;
+        public int targetHeight = 480;
         
-        private Queue<string> buffer;
         public bool isStreaming;
         
-        private Texture2D capturedTexture;
-        private int targetWidth = 480;
-        private int targetHeight = 480;
+        private Queue<string> _buffer;
         
-        private Action<string> callback;
-        private bool captureTriggered = false;
-        private Event eventToReadKeyboard;
+        private Texture2D _capturedTexture;
+        
+        private Action<string> _callback;
+        private Event _eventToReadKeyboard;
 
-        private string responseString = "";
+        private string _responseString = "";
 
-        private const string PromptContent =
-            "Analyze the image and choose a sequence of actions.\n\nReturn only valid JSON matching this schema.\nRules:\n" +
-            "- Use only the allowed action types.\n- Output 1 to 4 actions.\n- Order actions from first to last.\n" +
-            "- Do not include markdown or explanations outside JSON.\n" +
-            "- If the image is unclear, return {\"actions\":[{\"type\":\"jump\"}]}.";
-        
-        
+        private bool _loopingEnabled = false;
+        private bool _isLooping = false;
+        private bool _started = false;
         
         private const string ActionsSchema = @"{
               ""type"": ""object"",
@@ -85,7 +80,7 @@ namespace Agent_Mechanics
         private void StreamFinished()
         {
             isStreaming = false;
-            callback?.Invoke(responseString);
+            _callback?.Invoke(_responseString);
         }
         
         void OnEnable() { Ollama.OnStreamFinished += StreamFinished; }
@@ -93,27 +88,42 @@ namespace Agent_Mechanics
 
         void Start()
         {
-            buffer = new Queue<string>();
+            _buffer = new Queue<string>();
             Ollama.InitChat();
         }
         
         void OnGUI() 
         {
-            eventToReadKeyboard = Event.current;
+            _eventToReadKeyboard = Event.current;
         }
 
         private void Update()
         {
-            if (eventToReadKeyboard == null) return;
-            // Capture key press "M" and trigger the camera capture 
-            if (eventToReadKeyboard.keyCode== KeyCode.M)
+            if (_loopingEnabled)
             {
-                if (!captureTriggered)
+                if (!_isLooping)
                 {
-                    captureTriggered = true;
-                    responseString = "";
+                    _isLooping = true;
+                    _responseString = "";
                     OnSubmit(ActionsPrompt, CallWhenActionsReceived);
                 }
+            }
+            
+            if (_eventToReadKeyboard == null) return;
+            // Capture key press "M" to start moving
+            if (_eventToReadKeyboard.keyCode == KeyCode.M)
+            {
+                if (!_started)
+                {
+                    _loopingEnabled = true;
+                    _started = true;
+                }
+            }
+            // Capture key press "S" to stop
+            if (_eventToReadKeyboard.keyCode == KeyCode.S)
+            {
+                if (_started)
+                    _loopingEnabled = false;
             }
         }
 
@@ -123,27 +133,27 @@ namespace Agent_Mechanics
                 return;
 
             // The following formatting is based on gemma3:4b
-            while (buffer.TryDequeue(out string text))
+            while (_buffer.TryDequeue(out string text))
             {
                 text = text.Replace("\n\n", "\n");
-                responseString += text;
+                _responseString += text;
             }
         }
         
         public void OnSubmit(string input, Action<string> responseCallback)
         {
-            callback = responseCallback;
+            _callback = responseCallback;
             if (isStreaming)
                 return;
             // Start stream to send message to model
             isStreaming = true;
             
             // Capture frame
-            StartCoroutine(GetTextureFromCamera(sourceCamera, (txt2D) =>
+            StartCoroutine(cameraFrameGetter.GetTextureFromCamera(targetWidth, targetHeight, (txt2D) =>
             {
                 // Copy this texture into memory before using it
-                CopyCapturedTexture(txt2D, out capturedTexture, true);
-                SendTextAndImage(capturedTexture, input, ActionsSchema);
+                cameraFrameGetter.CopyCapturedTexture(txt2D, out _capturedTexture, true);
+                SendTextAndImage(_capturedTexture, input, ActionsSchema);
             }));
         }
         
@@ -152,97 +162,17 @@ namespace Agent_Mechanics
             // Show image for ease of use
             imageToShow.sprite = Sprite.Create(texture, new Rect(0, 0, targetWidth, targetHeight), Vector2.zero);
             Debug.Log($"Handing over a texture of size w:{texture.width} h: {texture.height}. With format: {texture.format}");
-            
+
             // The new call ChatStream that includes the format
-            await Ollama.ChatStreamNew((string text) => 
-                buffer.Enqueue(text), demoModel, input, format, 300, texture);
-            
+            await Ollama.ChatStreamNew((string text) =>
+                _buffer.Enqueue(text), demoModel, input, format, 300, texture);
+
             isStreaming = false;
-        }
-        
-        private IEnumerator GetTextureFromCamera(Camera mCamera, Action<Texture2D> callback)
-        {
-            RenderTexture renderTexture = new RenderTexture(targetWidth, targetHeight, 24);
-            renderTexture.antiAliasing = 1;
-            Texture2D screenShot = new Texture2D(targetWidth, targetHeight, TextureFormat.RGB24, false);
-
-            mCamera.targetTexture = renderTexture;
-            mCamera.Render();
-        
-            yield return new WaitForEndOfFrame();
-        
-            RenderTexture prev = RenderTexture.active;
-            RenderTexture.active = renderTexture;
-        
-            screenShot.ReadPixels(new Rect(0, 0, targetWidth, targetHeight), 0, 0);
-            screenShot.Apply(false, false);
-        
-            RenderTexture.active = prev;
-            mCamera.targetTexture = null;
-            renderTexture.Release();
-            callback(screenShot);
-        }
-
-        private void CopyCapturedTexture(Texture2D inTex, out Texture2D outTex, bool considerMipmapLimits)
-        {
-            int width = inTex.width;
-            int height = inTex.width;
-
-            Texture2DArray outArray = new Texture2DArray(width, height, 24, inTex.format, false);
-            outTex = new Texture2D(width, height, inTex.format, false);
-
-            if (!considerMipmapLimits)
-            {
-                // Texture2D -> Texture2DArray
-                // Global Mipmap Limit: "1: Half Resolution" => copies into mips that are now too large; will copy each mip of inTex into a quarter of outArray
-                for (int mip = 0; mip < inTex.mipmapCount; ++mip)
-                {
-                    int copyWidth = width >> mip;
-                    int copyHeight = height >> mip;
-                    Graphics.CopyTexture(inTex, 0, mip, 0, 0, copyWidth, copyHeight, outArray, 0, mip, 0, 0);
-                }
-
-                // Texture2DArray -> Texture2D
-                // Global Mipmap Limit: "1: Half Resolution" => errors, since we try to copy into mips that are now too small
-                for (int mip = 0; mip < outArray.mipmapCount; ++mip)
-                {
-                    int copyWidth = width >> mip;
-                    int copyHeight = height >> mip;
-                    Graphics.CopyTexture(outArray, 0, mip, 0, 0, copyWidth, copyHeight, outTex, 0, mip, 0, 0);
-                }
-            }
-            else // considering mipmap limits
-            {
-                int globalMipmapLimit = QualitySettings.globalTextureMipmapLimit;
-
-                // Texture2D -> Texture2DArray
-                // Global Mipmap Limit: "1: Half Resolution" => mip0 of outArray is not written to, other mips copy as expected
-                //  (ALTERNATIVE: if outArray creation already considered globalMipmapLimit for its dimensions,
-                //   the CopyTexture call can ignore globalMipmapLimit since the mips will line up again)
-                for (int mip = 0; mip < inTex.mipmapCount - globalMipmapLimit; ++mip)
-                {
-                    int copyWidth = width >> mip;
-                    int copyHeight = height >> mip;
-                    int srcMip = mip;
-                    int dstMip = mip + globalMipmapLimit;
-                    Graphics.CopyTexture(inTex, 0, srcMip, 0, 0, copyWidth, copyHeight, outArray, 0, dstMip, 0, 0);
-                }
-
-                // Texture2DArray -> Texture2D
-                // Global Mipmap Limit: "1: Half Resolution" => mip0 of outArray is not copied (but outTex does not upload it to GPU anyway)
-                for (int mip = globalMipmapLimit; mip < outArray.mipmapCount; ++mip)
-                {
-                    int copyWidth = width >> mip;
-                    int copyHeight = height >> mip;
-                    int srcMip = mip;
-                    int dstMip = mip - globalMipmapLimit;
-                    Graphics.CopyTexture(outArray, 0, srcMip, 0, 0, copyWidth, copyHeight, outTex, 0, dstMip, 0, 0);
-                }
-            }
         }
 
         private void CallWhenActionsReceived(string actionsJson)
         {
+            Debug.Log(actionsJson);
             // Parse and get the "actions" array
             actionsJson = actionsJson.Replace("```json", "");
             actionsJson = actionsJson.Replace("```", "");
@@ -255,8 +185,12 @@ namespace Agent_Mechanics
                 .Select(x => x.ToString())
                 .ToArray();
 
-            sequentialMoveTest.RunStringArray(actions);
-            captureTriggered = false; // For TESTING: Better to wait for the end of movements
+            sequentialMoveTest.RunStringArray(actions, CallWhenMovingFinished);
+        }
+
+        private void CallWhenMovingFinished()
+        {
+            _isLooping = false;
         }
     }
 }

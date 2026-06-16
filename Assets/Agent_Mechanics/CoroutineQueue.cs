@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -12,6 +13,12 @@ namespace Agent_Mechanics
         private readonly Queue<IEnumerator> queue = new();
         private Coroutine runner;
         private bool isRunning;
+        private Action actionWhenQueueIsEmpty;
+
+        public void DefineActionWhenQueueIsEmpty(Action action)
+        {
+            actionWhenQueueIsEmpty = action;
+        }
 
         public void Enqueue(IEnumerator routine)
         {
@@ -34,6 +41,7 @@ namespace Agent_Mechanics
 
             isRunning = false;
             runner = null;
+            StartCoroutine(RunActionAfterDelay(0.5f));
         }
 
         public void ClearQueue()
@@ -52,6 +60,12 @@ namespace Agent_Mechanics
             }
 
             isRunning = false;
+        }
+
+        private IEnumerator RunActionAfterDelay(float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            actionWhenQueueIsEmpty?.Invoke();
         }
     }
 }
