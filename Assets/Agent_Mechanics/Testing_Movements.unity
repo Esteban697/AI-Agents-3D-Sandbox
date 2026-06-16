@@ -292,7 +292,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DemoSendImageAndGetJson
   cameraFrameGetter: {fileID: 1221041505}
-  sequentialMoveTest: {fileID: 1762682262}
+  sequentialMover: {fileID: 1762682262}
   imageToShow: {fileID: 60538176}
   demoModel: llava
   targetWidth: 480
@@ -1583,7 +1583,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8f522333a116c64ea444b57fbf764ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Agent_Mechanics.StarterAssetsCodeMover
-  starterAssetsInputs: {fileID: 0}
+  starterAssetsInputs: {fileID: 1762682259}
 --- !u!114 &1762682268
 MonoBehaviour:
   m_ObjectHideFlags: 0

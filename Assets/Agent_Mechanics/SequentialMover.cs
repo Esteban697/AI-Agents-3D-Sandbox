@@ -11,7 +11,7 @@ namespace Agent_Mechanics
         public List<string> actions;
     }
     
-    public class SequentialMoveTest : MonoBehaviour
+    public class SequentialMover : MonoBehaviour
     {
         [SerializeField] private StarterAssetsCodeMover starterAssetsCodeMover;
         [SerializeField] private CoroutineQueue coroutineQueue;
@@ -21,9 +21,9 @@ namespace Agent_Mechanics
         private string jsonExample = 
             @"{""actions"": 
                 [""moveForward"", 
-                ""rotateRight"", 
+                ""rotateRight45"", 
                 ""moveForward"", 
-                ""rotateLeft"", 
+                ""rotateLeft45"", 
                 ""jump""]}";
 
         private void Awake()
@@ -31,9 +31,9 @@ namespace Agent_Mechanics
             actionMap = new Dictionary<string, Func<IEnumerator>>(StringComparer.OrdinalIgnoreCase)
             {
                 ["moveForward"] = OneStepForward,
-                ["moveBackward"] = OneStepBackward,
-                ["rotateRight"] = OneRotateRight,
-                ["rotateLeft"] = OnRotateLeft,
+                ["turnAround180"] = OneStepBackward,
+                ["rotateRight45"] = OneRotateRight,
+                ["rotateLeft45"] = OnRotateLeft,
                 ["jump"] = OneJump,
             };
         }
@@ -108,7 +108,7 @@ namespace Agent_Mechanics
         {
             starterAssetsCodeMover.MoveBackward();
             yield return new WaitForSeconds(1.0f);
-            starterAssetsCodeMover.StopForwardBack();
+            starterAssetsCodeMover.StopAll();
         }
 
         private IEnumerator OneStepLeft()

@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using ollama;
 using System;
 using System.Linq;
-using UnityEngine.UI;
 using Newtonsoft.Json.Linq;
+using UnityEngine.UI;
+
 
 namespace Agent_Mechanics
 {
@@ -18,7 +19,7 @@ namespace Agent_Mechanics
         [SerializeField] CameraFrameGetter cameraFrameGetter;
         
         [Header("Move Sequencer")]
-        [SerializeField] SequentialMoveTest sequentialMoveTest;
+        [SerializeField] SequentialMover sequentialMover;
         
         [Header("Image to show what image is uploaded with prompt")]
         [SerializeField] private Image imageToShow;

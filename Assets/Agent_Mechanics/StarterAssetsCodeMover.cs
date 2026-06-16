@@ -15,7 +15,6 @@ namespace Agent_Mechanics
 
         // Callable methods
         public void MoveForward() => starterAssetsInputs.move = new Vector2(starterAssetsInputs.move.x, 1f);
-        public void MoveBackward() => starterAssetsInputs.move = new Vector2(starterAssetsInputs.move.x, -1f);
         public void MoveRight() => starterAssetsInputs.move = new Vector2(1f, starterAssetsInputs.move.y);
         public void MoveLeft() => starterAssetsInputs.move = new Vector2(-1f, starterAssetsInputs.move.y);
 
@@ -24,6 +23,12 @@ namespace Agent_Mechanics
         
         public void RotateRight() => starterAssetsInputs.look = new Vector2(45f, starterAssetsInputs.look.y);
         public void RotateLeft() => starterAssetsInputs.look = new Vector2(-45, starterAssetsInputs.look.y);
+
+        public void MoveBackward()
+        {
+            starterAssetsInputs.look = new Vector2(180f, starterAssetsInputs.look.y);
+            starterAssetsInputs.move = new Vector2(starterAssetsInputs.move.x, 0.01f);
+        }
 
         public void StopAll() {
             starterAssetsInputs.move = Vector2.zero;
