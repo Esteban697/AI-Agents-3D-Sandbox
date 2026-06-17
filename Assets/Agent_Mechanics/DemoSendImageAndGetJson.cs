@@ -215,7 +215,19 @@ namespace Agent_Mechanics
 
             // Convert to string[] - use Formatting.None to avoid extra whitespace
             string[] actions = actionsArray
-                .Select(x => x.ToString())
+                .Select(x => 
+                {
+                    // Check if it's an object with "action" property OR a plain string
+                    if (x is JObject actionObj)
+                    {
+                        return actionObj.Value<string>("action");
+                    }
+                    else
+                    {
+                        // Plain string case
+                        return x.Value<string>();
+                    }
+                })
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .ToArray();
             
@@ -228,10 +240,10 @@ namespace Agent_Mechanics
             else
             {
                 // Look for explanation
-                JArray explainJArray = (JArray)obj["explanation"];
-                if (explainJArray != null)
+                JToken explanationToken = obj["explanation"];
+                if (explanationToken != null)
                 {
-                    string explanationInResponse = explainJArray.ToString();
+                    string explanationInResponse = explanationToken.Value<string>();
                     Debug.Log($"Experience for memory:{explanationInResponse}");
                     Ollama.AddAssistantMessage(explanationInResponse);
                 }
