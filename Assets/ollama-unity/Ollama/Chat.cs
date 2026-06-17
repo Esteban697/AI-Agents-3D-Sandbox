@@ -209,7 +209,7 @@ namespace ollama
                 }
             });
 
-            ChatHistory.Add(new Message("assistant", reply.ToString()));
+            // NOTE: Here the "assistant" message was added with the reply to create the chat history. New method below
 
             bool system = HasSystemPrompt();
 
@@ -225,6 +225,10 @@ namespace ollama
             OnStreamFinished?.Invoke();
         }
 
+        public static void AddAssistantMessage(string message)
+        {
+            ChatHistory.Add(new Message("assistant", message));
+        }
 
         public static bool HasSystemPrompt() => (ChatHistory != null) && (ChatHistory.Count > 0) && (ChatHistory[0].role == "system");
 

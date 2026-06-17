@@ -16,24 +16,24 @@ namespace Agent_Mechanics
         [SerializeField] private StarterAssetsCodeMover starterAssetsCodeMover;
         [SerializeField] private CoroutineQueue coroutineQueue;
         
-        private Dictionary<string, Func<IEnumerator>> actionMap;
-        
         private string jsonExample = 
             @"{""actions"": 
                 [""moveForward"", 
-                ""rotateRight45"", 
+                ""rotateRight"", 
                 ""moveForward"", 
-                ""rotateLeft45"", 
+                ""rotateLeft"", 
                 ""jump""]}";
+        
+        private Dictionary<string, Func<IEnumerator>> actionMap;
 
         private void Awake()
         {
             actionMap = new Dictionary<string, Func<IEnumerator>>(StringComparer.OrdinalIgnoreCase)
             {
                 ["moveForward"] = OneStepForward,
-                ["turnAround180"] = OneStepBackward,
-                ["rotateRight45"] = OneRotateRight,
-                ["rotateLeft45"] = OnRotateLeft,
+                ["turnAround"] = OneStepBackward,
+                ["rotateRight"] = OneRotateRight,
+                ["rotateLeft"] = OnRotateLeft,
                 ["jump"] = OneJump,
             };
         }

@@ -27,7 +27,7 @@ namespace Agent_Mechanics
         public void MoveBackward()
         {
             starterAssetsInputs.look = new Vector2(180f, starterAssetsInputs.look.y);
-            starterAssetsInputs.move = new Vector2(starterAssetsInputs.move.x, 0.01f);
+            starterAssetsInputs.move = new Vector2(starterAssetsInputs.move.x, 0.02f);
         }
 
         public void StopAll() {

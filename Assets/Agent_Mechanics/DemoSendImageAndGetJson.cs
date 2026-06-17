@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using ollama;
 using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 using UnityEngine.UI;
 
@@ -15,28 +16,26 @@ namespace Agent_Mechanics
     /// </summary>
     public class DemoSendImageAndGetJson : MonoBehaviour
     {
-        [Header("Camera Frame Getter")]
-        [SerializeField] CameraFrameGetter cameraFrameGetter;
-        
-        [Header("Move Sequencer")]
-        [SerializeField] SequentialMover sequentialMover;
-        
-        [Header("Image to show what image is uploaded with prompt")]
-        [SerializeField] private Image imageToShow;
-        
-        [Header("Models")]
-        [SerializeField]
-        private string demoModel = "llava";
-        
+        [Header("Camera Frame Getter")] [SerializeField]
+        CameraFrameGetter cameraFrameGetter;
+
+        [Header("Move Sequencer")] [SerializeField]
+        SequentialMover sequentialMover;
+
+        [Header("Image to show what image is uploaded with prompt")] [SerializeField]
+        private Image imageToShow;
+
+        [Header("Models")] [SerializeField] private string demoModel = "llava";
+
         public int targetWidth = 480;
         public int targetHeight = 480;
-        
+
         public bool isStreaming;
-        
+
         private Queue<string> _buffer;
-        
+
         private Texture2D _capturedTexture;
-        
+
         private Action<string> _callback;
         private Event _eventToReadKeyboard;
 
@@ -45,7 +44,7 @@ namespace Agent_Mechanics
         private bool _loopingEnabled = false;
         private bool _isLooping = false;
         private bool _started = false;
-        
+
         private const string ActionsSchema = @"{
               ""type"": ""object"",
               ""properties"": {
@@ -57,43 +56,59 @@ namespace Agent_Mechanics
                     ""type"": ""string"",
                     ""enum"": [
                       ""moveForward"",
-                      ""moveBackward"",
                       ""rotateLeft"",
                       ""rotateRight"",
                       ""jump"",
                     ]
                   }
-                }
+                },
+                ""explanation"": {
+                    ""type"": ""string"" }
               },
               ""required"": [""actions""],
               ""additionalProperties"": false
             }";
-        
-        private static readonly string ActionsPrompt = string.Format(
-            "Analyze the image and decide the best sequence of actions.\n\n" +
-            "Return only valid JSON.\n" +
+
+        private string SystemPrompt = string.Format(
+            "You are the expert player that controls the character navigating a 3D space.\n" +
+            "Your goal is to find the red sphere in the maze by moving the character forward, rotating and jumping.\n" +
             "Use only the allowed actions from the schema.\n" +
+            "Include a single sentence explanation inside the schema.\n" +
             "Do not include markdown, comments, or explanations outside JSON.\n\n" +
             "Schema:\n{0}",
-            ActionsSchema
-        );
+            ActionsSchema);
+
+        private static readonly string UserPrompt =
+            "Analyze the image and based on the 3D space in front of the character decide the best sequence of actions.\n" +
+            "Rotating will be 45 degrees on the selected side: left or right.\n" +
+            "If the character is one step away from an obstacle you should rotate to continue forward in another direction.\n" +
+            "Return only valid JSON.\n";
+
 
         private void StreamFinished()
         {
             isStreaming = false;
             _callback?.Invoke(_responseString);
         }
-        
-        void OnEnable() { Ollama.OnStreamFinished += StreamFinished; }
-        void OnDisable() { Ollama.OnStreamFinished -= StreamFinished; }
+
+        void OnEnable()
+        {
+            Ollama.OnStreamFinished += StreamFinished;
+        }
+
+        void OnDisable()
+        {
+            Ollama.OnStreamFinished -= StreamFinished;
+        }
 
         void Start()
         {
             _buffer = new Queue<string>();
             Ollama.InitChat();
+            Ollama.SetSystemPrompt(SystemPrompt);
         }
-        
-        void OnGUI() 
+
+        void OnGUI()
         {
             _eventToReadKeyboard = Event.current;
         }
@@ -106,10 +121,10 @@ namespace Agent_Mechanics
                 {
                     _isLooping = true;
                     _responseString = "";
-                    OnSubmit(ActionsPrompt, CallWhenActionsReceived);
+                    OnSubmit(UserPrompt, CallWhenActionsReceived);
                 }
             }
-            
+
             if (_eventToReadKeyboard == null) return;
             // Capture key press "M" to start moving
             if (_eventToReadKeyboard.keyCode == KeyCode.M)
@@ -120,6 +135,7 @@ namespace Agent_Mechanics
                     _started = true;
                 }
             }
+
             // Capture key press "S" to stop
             if (_eventToReadKeyboard.keyCode == KeyCode.S)
             {
@@ -140,7 +156,7 @@ namespace Agent_Mechanics
                 _responseString += text;
             }
         }
-        
+
         public void OnSubmit(string input, Action<string> responseCallback)
         {
             _callback = responseCallback;
@@ -148,7 +164,7 @@ namespace Agent_Mechanics
                 return;
             // Start stream to send message to model
             isStreaming = true;
-            
+
             // Capture frame
             StartCoroutine(cameraFrameGetter.GetTextureFromCamera(targetWidth, targetHeight, (txt2D) =>
             {
@@ -157,12 +173,13 @@ namespace Agent_Mechanics
                 SendTextAndImage(_capturedTexture, input, ActionsSchema);
             }));
         }
-        
+
         private async void SendTextAndImage(Texture2D texture, string input, string format)
         {
             // Show image for ease of use
             imageToShow.sprite = Sprite.Create(texture, new Rect(0, 0, targetWidth, targetHeight), Vector2.zero);
-            Debug.Log($"Handing over a texture of size w:{texture.width} h: {texture.height}. With format: {texture.format}");
+            Debug.Log(
+                $"Handing over a texture of size w:{texture.width} h: {texture.height}. With format: {texture.format}");
 
             // The new call ChatStream that includes the format
             await Ollama.ChatStreamNew((string text) =>
@@ -173,20 +190,53 @@ namespace Agent_Mechanics
 
         private void CallWhenActionsReceived(string actionsJson)
         {
-            Debug.Log(actionsJson);
-            // Parse and get the "actions" array
-            actionsJson = actionsJson.Replace("```json", "");
-            actionsJson = actionsJson.Replace("```", "");
-            Debug.Log($"Actions received: {actionsJson}");
+            Debug.Log($"Received:{actionsJson}");
+            actionsJson = Regex.Replace(actionsJson, @"```(?:\w+)?\s*", "", RegexOptions.Multiline);
+            actionsJson = Regex.Replace(actionsJson, @"```\s*", "", RegexOptions.Multiline);
+            // Find where the JSON object starts and ends
+            int startIndex = actionsJson.IndexOf('{');
+            int endIndex = actionsJson.LastIndexOf('}');
+
+            if (startIndex == -1 || endIndex == -1 || endIndex < startIndex)
+            {
+                Debug.Log("ERROR: No valid JSON object found!");
+                Debug.Log($"Full input: {actionsJson}");
+                // Retry
+                CallWhenMovingFinished();
+            }
+
+            // Extract ONLY the JSON portion, stripping everything before/after
+            actionsJson = actionsJson.Substring(startIndex, endIndex - startIndex + 1);
+            actionsJson = actionsJson.Trim();
+
+            Debug.Log($"Cleaned JSON: {actionsJson}");
             JObject obj = JObject.Parse(actionsJson);
             JArray actionsArray = (JArray)obj["actions"];
 
-            // Convert to string[]
+            // Convert to string[] - use Formatting.None to avoid extra whitespace
             string[] actions = actionsArray
                 .Select(x => x.ToString())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
                 .ToArray();
-
-            sequentialMoveTest.RunStringArray(actions, CallWhenMovingFinished);
+            
+            // Depending on if actions where received we retry or process them
+            if (actions.Length == 0)
+            {
+                Debug.LogWarning("No actions in found in the last response. Retrying...");
+                CallWhenMovingFinished();
+            }
+            else
+            {
+                // Look for explanation
+                JArray explainJArray = (JArray)obj["explanation"];
+                if (explainJArray != null)
+                {
+                    string explanationInResponse = explainJArray.ToString();
+                    Debug.Log($"Experience for memory:{explanationInResponse}");
+                    Ollama.AddAssistantMessage(explanationInResponse);
+                }
+                sequentialMover.RunStringArray(actions, CallWhenMovingFinished);  
+            }
         }
 
         private void CallWhenMovingFinished()
