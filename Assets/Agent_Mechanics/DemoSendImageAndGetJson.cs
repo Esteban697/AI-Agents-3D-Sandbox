@@ -17,10 +17,10 @@ namespace Agent_Mechanics
     public class DemoSendImageAndGetJson : MonoBehaviour
     {
         [Header("Camera Frame Getter")] [SerializeField]
-        CameraFrameGetter cameraFrameGetter;
+        private CameraFrameGetter cameraFrameGetter;
 
         [Header("Move Sequencer")] [SerializeField]
-        SequentialMover sequentialMover;
+        private SequentialMover sequentialMover;
 
         [Header("Image to show what image is uploaded with prompt")] [SerializeField]
         private Image imageToShow;
@@ -78,7 +78,7 @@ namespace Agent_Mechanics
             "Schema:\n{0}",
             ActionsSchema);
 
-        private static readonly string UserPrompt =
+        private const string UserPrompt =
             "Analyze the image and based on the 3D space in front of the character decide the best sequence of actions.\n" +
             "Rotating will be 45 degrees on the selected side: left or right.\n" +
             "If the character is one step away from an obstacle you should rotate to continue forward in another direction.\n" +
